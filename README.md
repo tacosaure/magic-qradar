@@ -1,5 +1,5 @@
 # magic-qradar
- Powershell script to querry Qradar and generate KPI
+ Powershell script to query Qradar and generate KPI
 
 ## Description
 ### Overview
@@ -19,7 +19,7 @@ The script is composed of multiple functions grouped by their use:
 - end_date => "dd/MM/YYYY" format. End date of the search. Default = now
 
 ### Result
-The function KPI_generation is called by the main script. It generates a XLSX file, named _kpi_qradar.xslx_, wich is composed of 11 sheets:
+The function KPI_generation is called by the main script. It generates a XLSX file, named _kpi_qradar.xslx_, wich is composed of 11 worksheets:
 - rule_and_BB_modified => list of rules and building block that have been created or modified during a period of time
 - KPI_rule_and_BB_modified_status => numbers of rules and building block that have been created or modified during a period of time + bar chart
 - closingReason_by_rule => numbers of closing reason of closed offenses by rules during a period of time
@@ -60,7 +60,7 @@ To run the script, make sure you can reach your IBM Qradar console and execute t
 ## Warning
 This script has been tested on IBM Qradar on CLOUD with the API version 14.0. Furthermore, the date format used was "dd/MM/YYYY", I do not know if there is an impact with computer using "MM/dd/YYYY" date format by default.
 
-You may have warning messages by importexcel dealing with the closing Reason names that contains unsupported characters and have been converted into "\_" (closingReason_by_rule_stacked sheet). To solve this issue, it is a little bit tricky. This is not a blocking point and you can skip these warnings.
+You may have warning messages by importexcel dealing with the closing Reason names that contains unsupported characters and have been converted into "\_" (closingReason_by_rule_stacked sheet). To solve this issue, it is a little bit tricky. No names refering cells (in a excel formula) can contains characters different than letters, numbers, "." and "\_". This is not a blocking point and you can skip these warnings.
 
 ## Next improvements
 - [ ] Add execution information
