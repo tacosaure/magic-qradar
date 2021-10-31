@@ -9,8 +9,10 @@
 param(
     [Parameter(Mandatory)] $qradar_api_key="",
     $start_date = (Get-Date "01/01/1970"),
-    $end_date = (get-date)
+    $end_date = (get-date),
+    $ReferenceSet_json = ''
 )
+
 
 
 $qradar_api_url = '' #https://example_url_qradar.com/api/
@@ -459,6 +461,8 @@ Function Get-rulelist_and_BBlist{
 }
 
 
+
+
 Function MISP_to_Qradar_ReferenceSet {
 Param (
         $RSName,
@@ -500,6 +504,30 @@ Param (
             }
             else { Write-host "Error in if condition : return value = $return_status"}
 }
+
+Function jsonMISP_to_Qradar_ReferenceSet {
+Param (
+        $json
+)
+    
+    $info = $json.event.info 
+    $published =  $json.event.date
+    $dataset = $json.Event.Attribute
+    $file_extension = ".csv"
+
+    $RS_name_source = "MISP_event_"+$json.event.id
+
+    $types = $dataset | select type -Unique
+
+    $types | %{
+        $current = $_
+        $RS_data = $dataset | where {$_.type -match $current.type}
+        $RS_type = $current.type
+        $RS_name = $RS_name_source +"_"+$current.type
+        MISP_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data
+    }
+}
+
 
 
 Function Format_Offense{
@@ -1276,6 +1304,12 @@ Function KPI_generation{
         
  }   
 
-
-
-KPI_generation -start_date $start_date -end_date $end_date
+if ($ReferenceSet_json -eq '')
+{
+    #KPI_generation -start_date $start_date -end_date $end_date
+}
+else
+{
+    jsonMISP_to_Qradar_ReferenceSet -json (get-content $ReferenceSet_json | ConvertFrom-Json)
+    
+}
