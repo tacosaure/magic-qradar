@@ -26,6 +26,7 @@ param(
     $searchID,
     [switch]$checkSearchStatus,
     [switch] $cancelSearch,
+    [switch] $deleteSearch,
     $runSearch,
     [switch] $saveSearch,
     [switch] $listSearch,
@@ -649,7 +650,7 @@ Function Update-Search{
     
 
     
-    $url = $qradar_api_url + 'ariel/searches/' + $savedSearchID
+    $url = $qradar_api_url + 'ariel/searches/' + $SearchID
     
     if($saveResults){
         $url += "?save_results=true"
@@ -927,7 +928,7 @@ Function Search-ReferenceSet {
             if($ptr_type -lt $count_type){
                 $condition += " OR "
             }
-            $counter++
+            $ptr_type++
         }
 
         $condition += $start_date
@@ -1787,6 +1788,9 @@ else {
         if($cancelSearch){
             Update-Search -SearchID $searchID -status "CANCELED"
             Write-Host "The search $searchID has been canceled"
+        }
+        elseif($deleteSearch){
+            Delete-Search -SearchID $searchID
         }
         elseif($checkSearchStatus){
             $result = Get-Search -SearchID $searchID
