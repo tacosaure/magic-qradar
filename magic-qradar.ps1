@@ -839,7 +839,7 @@ Function csv_to_Qradar_ReferenceSet {
         [parameter(mandatory)] $csv
     )
     $RS_timeout_type = "LAST_SEEN"
-    $RS_name_source = $ReferenceSet_csv.split('.')[0].toUpper()
+    $RS_name_source = $ReferenceSet_csv.split('.')[0]
 
     $collectionWithItems =@()
 
@@ -862,7 +862,8 @@ Function csv_to_Qradar_ReferenceSet {
             $current_type_list | %{
                 $current_apt_tlp_type = $_
                 $RS_data_current_apt_tlp_type = $RS_data_current_apt_tlp | where {$_.type -eq $current_apt_tlp_type}
-                $RS_name = "IOC"+"_"+$current_apt_tlp_type+"_"+$RS_name_source +"_"+$IOC_APT+"_"+$current_apt_tlp
+                $RS_name = "IOC"+"_"+$current_apt_tlp_type+"_"+$RS_name_source +"_"+$IOC_APT+"_"+"TLP-"+$current_apt_tlp
+                $RS_name = $RS_name.ToUpper()
                 $RS_type = $current_apt_tlp_type
                 $RS_data = $RS_data_current_apt_tlp_type
 
@@ -923,7 +924,7 @@ Function Search-ReferenceSet {
                 $ptr_rs++
             }
             
-            if($ptr_type -lt $countype){
+            if($ptr_type -lt $count_type){
                 $condition += " OR "
             }
             $counter++
@@ -957,7 +958,7 @@ Function Get-AQLConditions {
                 sha256 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}
                 sha1 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}
                 md5 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}
-                filename {$aql_condition = 'ALNIC';break}
+                filename {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"filename`")";break}
                 domain {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}
                 fqdn {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}
                 email {$aql_condition = '';break}
