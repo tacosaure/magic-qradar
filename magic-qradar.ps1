@@ -91,7 +91,7 @@ Function Csv_creation{
 
 Function ImportExcel_initialisation{
     try{Install-Module -name ImportExcel -Force}
-    catch{write-host "ImportExcel module is not installed et must be installed as an administrator"}
+    catch{write-host "ImportExcel module is not installed and must be installed as an administrator"}
 }
 
 Function Csv_to_xlsx{
@@ -1052,7 +1052,22 @@ Function KPI_offense_status{
     $collectionWithItems +=$temp
 
 
-    $count = $backlog_handled + $closed_handled
+    $count=@()
+    $count += (KPI_offense_opened -start_date $start_date -end_date $end_date -offense_list_cache $offense_list_cache) | ?{(($_.assigned_to).length -gt 1)}
+    $count = $count.count
+    if($count -eq $null) {$count=0}
+    $new_backlog_assigned=$count
+
+    $temp = New-Object System.Object
+    $temp | Add-Member -MemberType NoteProperty -Name "Offense_status" -Value "new_backlog_assigned"
+    $temp | Add-Member -MemberType NoteProperty -Name "count" -Value $count
+
+    $collectionWithItems +=$temp
+
+
+
+    #$count = $backlog_handled + $closed_handled
+    $count = $new_backlog_assigned + $closed_handled
 
     $temp = New-Object System.Object
     $temp | Add-Member -MemberType NoteProperty -Name "Offense_status" -Value "total_handled"
@@ -1231,9 +1246,8 @@ Function KPI_generation{
     Remove-Item -Path $output -ErrorAction SilentlyContinue
 
     $KPI_rule_and_BB_modified | export-excel -path $output -WorksheetName "rule_and_BB_modified" -TableName "rule_and_BB_modified"
-    #############
-    #Create_chart_excel -value $KPI_rule_and_BB_modified_status -output $output -worksheetName "KPI_rule_and_BB_modified_status" -title "Tuning SIEM" -Xrange "Rule_BB_status" -Yrange "total" -chartType "columnstacked" -noLegend
-    $KPI_rule_and_BB_modified_status | Export-Excel -path $output -worksheetName "KPI_rule_and_BB_modified_status"
+    Create_chart_excel -value $KPI_rule_and_BB_modified_status -output $output -worksheetName "KPI_rule_and_BB_modified_status" -title "Tuning SIEM" -Xrange "status" -Yrange "Rule" -seriesHeader "Rule" -chartType "columnstacked" -noLegend
+    #$KPI_rule_and_BB_modified_status | Export-Excel -path $output -worksheetName "KPI_rule_and_BB_modified_status"
 
     $KPI_closingReason_by_rule | Export-Excel -path $output -worksheetName "closingReason_by_rule"
     
