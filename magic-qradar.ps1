@@ -28,6 +28,7 @@ param(
     [switch] $cancelSearch,
     $runSearch,
     [switch] $saveSearch,
+    [switch] $listSearch,
     [switch] $test=$false
 )
 
@@ -223,33 +224,33 @@ Function PivotChartTable{
 
 
 Function Create-ReferenceSet{
-Param ($RSName, $RSType, 
-    $ttl_year,
-    $ttl_month,
-    $ttl_day,
-    $ttl_hour,
-    $ttl_min,
-    $ttl_sec,
-    $timeout_type = "UNKNOWN"
-    )
+    Param ($RSName, $RSType, 
+        $ttl_year,
+        $ttl_month,
+        $ttl_day,
+        $ttl_hour,
+        $ttl_min,
+        $ttl_sec,
+        $timeout_type = "UNKNOWN"
+        )
 
-    $ttl="&time_to_live="
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $ttl="&time_to_live="
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-if($ttl_year -ne $null) {$ttl +=$ttl_year.toString() + " year "}
-if($ttl_month -ne $null) {$ttl +=$ttl_month.toString() + " month "}
-if($ttl_day -ne $null) {$ttl +=$ttl_day.toString() + " day "}
-if($ttl_hour -ne $null) {$ttl +=$ttl_hour.toString() + " hour "}
-if($ttl_min -ne $null) {$ttl +=$ttl_min.toString() + " min "}
-if($ttl_sec -ne $null) {$ttl +=$ttl_sec.toString() + " sec "}
-$ttl = [uri]::EscapeUriString($ttl)
-if($ttl -eq "&time_to_live="){$ttl=""}
+    if($null -ne $ttl_year) {$ttl +=$ttl_year.toString() + " year "}
+    if($null -ne $ttl_month) {$ttl +=$ttl_month.toString() + " month "}
+    if($null -ne $ttl_day) {$ttl +=$ttl_day.toString() + " day "}
+    if($null -ne $ttl_hour) {$ttl +=$ttl_hour.toString() + " hour "}
+    if($null -ne $ttl_min) {$ttl +=$ttl_min.toString() + " min "}
+    if($null -ne $ttl_sec) {$ttl +=$ttl_sec.toString() + " sec "}
+    $ttl = [uri]::EscapeUriString($ttl)
+    if($ttl -eq "&time_to_live="){$ttl=""}
 
-$url = $qradar_api_url + 'reference_data/sets?element_type='+ $RSType +'&name='+ $RSName + $ttl + "&timeout_type="+$timeout_type
+    $url = $qradar_api_url + 'reference_data/sets?element_type='+ $RSType +'&name='+ $RSName + $ttl + "&timeout_type="+$timeout_type
 
-$response = Invoke-RestMethod -Method Post $url -Headers $headers
-$response
-Write-host "$RSName has been created"
+    $response = Invoke-RestMethod -Method Post $url -Headers $headers
+    Write-host "$RSName has been created"
+    return $response
 }
 
 Function Set-ReferenceSet{
@@ -263,11 +264,12 @@ $url = $qradar_api_url + 'reference_data/sets/'+$RSName+'?value='+$RSvalue
 $response = Invoke-RestMethod -Method Post $url -Headers $headers
 
 Write-verbose "$RSName has been filled"
+return $response
 }
 
 Function Update-ReferenceSet{
     Param ($RSName, $RSvalue, $RSAvailable)
-    if($RSAvailable.data -ne $null)
+    if($null -ne $RSAvailable.data)
     {
         if($RSAvailable.data.value.contains($RSvalue)) 
             {Write-Verbose "$RSvalue already exists in $RSName"}
@@ -732,6 +734,8 @@ Function Get-SearchResults{
     return $response
 }
 
+
+
 Function Get-SearchListName{
     param(
         $SearchList = (Get-SearchList)
@@ -752,9 +756,9 @@ Function Get-SearchListName{
 
 Function Data_to_Qradar_ReferenceSet {
 Param (
-        $RSName,
-        $RStype,
-        $RSdata,
+    [parameter(mandatory)] $RSName,
+    [parameter(mandatory)] $RStype,
+    [parameter(mandatory)] $RSdata,
         $RS_ttl_year,
         $RS_ttl_month,
         $RS_ttl_day,
@@ -808,7 +812,7 @@ Param (
 
 Function jsonMISP_to_Qradar_ReferenceSet {
 Param (
-        $json
+    [parameter(mandatory)] $json
 )
     
     $info = $json.event.info 
@@ -832,10 +836,14 @@ Param (
 
 Function csv_to_Qradar_ReferenceSet {
     Param (
-            $csv
+        [parameter(mandatory)] $csv
     )
     $RS_timeout_type = "LAST_SEEN"
     $RS_name_source = $ReferenceSet_csv.split('.')[0].toUpper()
+
+    $collectionWithItems =@()
+
+    $response=$null
 
     $APT_list = $csv.threats | select -unique
 
@@ -868,17 +876,98 @@ Function csv_to_Qradar_ReferenceSet {
                         "green" {$effectiveTTL = $tlp_green_ttl;break}
                         "white" {$effectiveTTL = $tlp_white_ttl;break}
                     }
-                    Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data -RS_ttl_month $effectiveTTL
+                    $response = Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data -RS_ttl_month $effectiveTTL
                 }
-                else {Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data -RS_ttl_year $ttl_year -RS_ttl_month $ttl_month -RS_ttl_day $ttl_day -RS_ttl_hour $ttl_hour -RS_ttl_min $ttl_min -RS_ttl_sec $ttl_sec -RS_timeout_type $RS_timeout_type}
+                else {$response = Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data -RS_ttl_year $ttl_year -RS_ttl_month $ttl_month -RS_ttl_day $ttl_day -RS_ttl_hour $ttl_hour -RS_ttl_min $ttl_min -RS_ttl_sec $ttl_sec -RS_timeout_type $RS_timeout_type}
                 
+                $temp = New-Object System.Object
+                $temp | Add-Member -MemberType NoteProperty -Name "Reference_Set_Name" -Value $RS_name
+                $temp | Add-Member -MemberType NoteProperty -Name "Reference_Set_Type" -Value $current_apt_tlp_type
+                $temp | Add-Member -MemberType NoteProperty -Name "Reference_Set_Threat" -Value $IOC_APT
+                $temp | Add-Member -MemberType NoteProperty -Name "Reference_Set_TLP" -Value $current_apt_tlp
+                $collectionWithItems +=$temp
             }
 
         }
     }
+    return $collectionWithItems
+}
+
+Function Search-ReferenceSet {
+    Param (
+        [parameter(mandatory)] $RS_set,
+        $start_date 
+    )
+    if($null -eq $start_date){$start_date = " LAST 10 DAYS "}
+    else {$start_date = " START " +$start_date}
+
+    Write-Host ("inside of Search-ReferenceSet")
+
+    $collectionWithItems = @()
+
+    $threats_list = $RS_set | select -Unique Reference_Set_Threat
+    foreach ($threats in $threats_list.Reference_Set_Threat){
+        $current_RS = $RS_set | ?{$_.Reference_Set_Threat -eq $threats}
+        $type_list = $current_RS| select -Unique Reference_Set_Type
+        $condition="" 
+        $count_type = $type_list.Reference_Set_Type.count
+        $ptr_type=1
+        foreach ($type in $type_list.Reference_Set_Type){
+            $ptr_rs = 1
+            $count_rs = $current_RS.count
+            foreach ($rs in $current_RS){
+                $condition += Get-AQLConditions -type $type -RS_name $rs.Reference_Set_Name
+                if($ptr_rs -lt $count_rs){
+                    $condition += " OR "
+                }
+                $ptr_rs++
+            }
+            
+            if($ptr_type -lt $countype){
+                $condition += " OR "
+            }
+            $counter++
+        }
+
+        $condition += $start_date
+        $AQL = "SELECT * FROM events WHERE " + $condition
+        $search = Create-Search -AQL $AQL
+        #write-host($AQL)
+
+        $temp = New-Object System.Object
+        $temp | Add-Member -MemberType NoteProperty -Name "Search_id" -Value $search.search_id
+        $temp | Add-Member -MemberType NoteProperty -Name "AQL_query" -Value $search.query_string
+        $temp | Add-Member -MemberType NoteProperty -Name "Threat" -Value $threats
+        $temp | Add-Member -MemberType NoteProperty -Name "Status" -Value $search.status
+        $collectionWithItems +=$temp
+    }
+    return $collectionWithItems
 }
 
 
+Function Get-AQLConditions {
+    Param (
+        [parameter(mandatory)] $type,
+        [parameter(mandatory)] $RS_name
+    )
+        $aql_condition =""
+    
+        switch ( $type )
+            {
+                sha256 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}
+                sha1 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}
+                md5 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}
+                filename {$aql_condition = 'ALNIC';break}
+                domain {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}
+                fqdn {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}
+                email {$aql_condition = '';break}
+                url {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}
+                hostname {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}
+                ip-dst {$aql_condition = "REFERENCESETCONTAINS('$RS_name',sourceip) OR REFERENCESETCONTAINS('$RS_name',destinationip)";break}
+                ip {$aql_condition = "REFERENCESETCONTAINS('$RS_name',sourceip) OR REFERENCESETCONTAINS('$RS_name',destinationip)";break}
+            }
+    return $aql_condition
+}
 
 Function Format_Offense{
     param(
@@ -1666,20 +1755,19 @@ Function KPI_generation{
 if($test){
     #Get-SearchResults -SearchID 'a283ca83-83f0-4ecc-bfab-e0af945a74ab'
     #Get-Search -SearchID 'bd1bab49-b8f5-49dd-8900-75828e87c106'
-    Get-SearchList
-    Delete-Search -SearchID 'bd1bab49-b8f5-49dd-8900-75828e87c106'
-    Get-SearchList
+    Get-SearchListName
 }
 else {
     if ($ReferenceSet_json -ne '')
     {
-        jsonMISP_to_Qradar_ReferenceSet -json (get-content $ReferenceSet_json | ConvertFrom-Json)
+        $RS_set = jsonMISP_to_Qradar_ReferenceSet -json (get-content $ReferenceSet_json | ConvertFrom-Json)
+        Search-ReferenceSet -RS_set $RS_set
         
     }
     elseif ($ReferenceSet_csv -ne '')
     {
-        csv_to_Qradar_ReferenceSet -csv (get-content $ReferenceSet_csv | ConvertFrom-Csv -Delimiter $delimiter)
-        
+        $RS_set = csv_to_Qradar_ReferenceSet -csv (get-content $ReferenceSet_csv | ConvertFrom-Csv -Delimiter $delimiter)
+        Search-ReferenceSet -RS_set $RS_set
     }
     elseif($null -ne $listReferenceSet)
     {
@@ -1689,6 +1777,9 @@ else {
         else{
         (Get-ReferenceSet) | select name,element_type,number_of_elements,@{Name="Creation_time";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.creation_time}},time_to_live,timeout_type | sort name
         }
+    }
+    elseif($listSearch){
+        Get-SearchListName
     }
     elseif($searchID)
     {
@@ -1702,6 +1793,7 @@ else {
             Write-Host ("AQL query: "+$result.query_string)
             Write-Host ("Search ID: "+$result.search_id)
             Write-Host ("Search status: "+$result.status)
+            Write-Host ("Progress: "+$result.progress +"%")
             Write-Host ("Save results: "+$result.save_result.tostring)
             Write-Host ("Record count: "+$result.record_count)
             Write-Host ("Query execution time: "+$result.query_execution_time +"ms")
@@ -1722,6 +1814,7 @@ else {
         Write-Host "AQL query: $runSearch"
         Write-Host ("Search ID: "+$result.search_id)
         Write-Host ("Search status: "+$result.status)
+        Write-Host ("Progress: "+$result.progress +"%")
         Write-Host ("Save results: "+$result.save_result)
         Write-Host ("Record count: "+$result.record_count)
         Write-Host ("Query execution time: "+$result.query_execution_time +"ms")
@@ -1732,4 +1825,3 @@ else {
         KPI_generation -start_date $start_date -end_date $end_date
     }
 }
-
