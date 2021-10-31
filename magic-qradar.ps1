@@ -12,7 +12,8 @@ param(
     $end_date = (get-date),
     $ReferenceSet_json = '',
     $ReferenceSet_csv = '',
-    $delimiter = ";"
+    $delimiter = ";",
+    [switch] $listReferenceSet =$false
 )
 
 
@@ -248,8 +249,16 @@ Param ($RSName)
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+if($RSName -eq $null)
+{
+    $sub_url = ''
+}
+else 
+{
+    $sub_url ='/'+ $RSName
+}
 
-$url = $qradar_api_url + 'reference_data/sets/'+ $RSName
+$url = $qradar_api_url + 'reference_data/sets'+$sub_url
 
 $Error.Clear()
 try{$response = Invoke-RestMethod -Method Get $url -Headers $headers}
@@ -1364,7 +1373,7 @@ Function KPI_generation{
         
  }   
 
-if (($ReferenceSet_json -eq '') -and ($ReferenceSet_csv -eq ''))
+if (($ReferenceSet_json -eq '') -and ($ReferenceSet_csv -eq '') -and ($listReferenceSet -eq $false))
 {
     KPI_generation -start_date $start_date -end_date $end_date
 }
@@ -1377,4 +1386,8 @@ elseif ($ReferenceSet_csv -ne '')
 {
     csv_to_Qradar_ReferenceSet -csv (get-content $ReferenceSet_csv | ConvertFrom-Csv -Delimiter $delimiter)
     
+}
+elseif($listReferenceSet)
+{
+    (Get-ReferenceSet) | select name,@{Name="Creation_time";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.creation_time}} | sort name
 }
