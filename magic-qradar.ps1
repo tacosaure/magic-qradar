@@ -1045,7 +1045,7 @@ Function KPI_offense_status{
     $count += (KPI_offense_opened -offense_list_cache $offense_list_cache)
     $count = $count.count
     if($count -eq $null) {$count=0}
-
+    $backlog_total = $count
 
     $temp = New-Object System.Object
     $temp | Add-Member -MemberType NoteProperty -Name "Offense_status" -Value "Backlog open (total)"
@@ -1089,6 +1089,15 @@ Function KPI_offense_status{
     $temp = New-Object System.Object
     $temp | Add-Member -MemberType NoteProperty -Name "Offense_status" -Value "new_backlog_assigned"
     $temp | Add-Member -MemberType NoteProperty -Name "count" -Value $count
+
+    $collectionWithItems +=$temp
+
+    
+    $backlog_not_assigned= $backlog_total - $backlog_handled
+
+    $temp = New-Object System.Object
+    $temp | Add-Member -MemberType NoteProperty -Name "Offense_status" -Value "backlog_not_assigned"
+    $temp | Add-Member -MemberType NoteProperty -Name "count" -Value $backlog_not_assigned
 
     $collectionWithItems +=$temp
 
@@ -1306,7 +1315,7 @@ Function KPI_generation{
 
 if ($ReferenceSet_json -eq '')
 {
-    #KPI_generation -start_date $start_date -end_date $end_date
+    KPI_generation -start_date $start_date -end_date $end_date
 }
 else
 {
