@@ -2,9 +2,8 @@
         03/06/2021 (dd/MM/YYYY)
         IBM QRADAR API version 14.0
 
-        Requirement: importExcel module
-		
-		github: tacosaure
+        Requirement : importExcel module
+
 #>
 
 param(
@@ -761,7 +760,8 @@ Function KPI_rule_and_BB_modified{
         if ($_.creation_date_classic -ge (get-date $start_date))
             {"CREATED"}
         else {"MODIFIED"}
-    }}
+    }},
+    rule_type
 
     return $out
 }
@@ -772,25 +772,59 @@ Function KPI_rule_and_BB_modified_status{
     )
 
     $collectionWithItems = @()
-    $count=@()
-    $count += ($rule_list|?{$_.status -eq "CREATED"})
-    $count = $count.count
+    $count_rule=@()
+    $count_rule += ($rule_list|?{($_.status -eq "CREATED") -and ($_.Rule_type -eq "rule")})
+    $count_rule = $count_rule.count
+
+    $count_BB=@()
+    $count_BB += ($rule_list|?{($_.status -eq "CREATED") -and ($_.Rule_type -eq "BB")})
+    $count_BB = $count_BB.count
+
+    $total_created = $count_rule +$count_BB
 
     if($count -eq $null) {$count=0}
 
     $temp = New-Object System.Object
-    $temp | Add-Member -MemberType NoteProperty -Name "Rule_BB_status" -Value "created"
-    $temp | Add-Member -MemberType NoteProperty -Name "count" -Value $count
+    $temp | Add-Member -MemberType NoteProperty -Name "Status" -Value "created"
+    $temp | Add-Member -MemberType NoteProperty -Name "Rule" -Value $count_rule
+    $temp | Add-Member -MemberType NoteProperty -Name "BuldingBlock" -Value $count_BB
+    $temp | Add-Member -MemberType NoteProperty -Name "count" -Value $total_created
 
     $collectionWithItems +=$temp
 
-    $count=@()
-    $count += ($rule_list|?{$_.status -eq "MODIFIED"})
-    $count = $count.count
+    $count_rule=@()
+    $count_rule += ($rule_list|?{($_.status -eq "MODIFIED") -and ($_.Rule_type -eq "rule")})
+    $count_rule = $count_rule.count
+
+    $count_BB=@()
+    $count_BB += ($rule_list|?{($_.status -eq "MODIFIED") -and ($_.Rule_type -eq "BB")})
+    $count_BB = $count_BB.count
+
+    $total_modified = $count_rule +$count_BB
 
     $temp = New-Object System.Object
-    $temp | Add-Member -MemberType NoteProperty -Name "Rule_BB_status" -Value "modified"
-    $temp | Add-Member -MemberType NoteProperty -Name "count" -Value $count
+    $temp | Add-Member -MemberType NoteProperty -Name "Status" -Value "modified"
+    $temp | Add-Member -MemberType NoteProperty -Name "Rule" -Value $count_rule
+    $temp | Add-Member -MemberType NoteProperty -Name "BuldingBlock" -Value $count_BB
+    $temp | Add-Member -MemberType NoteProperty -Name "count" -Value $total_modified
+
+    $collectionWithItems +=$temp
+
+    $count_rule=@()
+    $count_rule += ($rule_list|?{($_.Rule_type -eq "rule")})
+    $count_rule = $count_rule.count
+
+    $count_BB=@()
+    $count_BB += ($rule_list|?{($_.Rule_type -eq "BB")})
+    $count_BB = $count_BB.count
+
+    $total = $count_rule +$count_BB
+
+    $temp = New-Object System.Object
+    $temp | Add-Member -MemberType NoteProperty -Name "Status" -Value "Total"
+    $temp | Add-Member -MemberType NoteProperty -Name "Rule" -Value $count_rule
+    $temp | Add-Member -MemberType NoteProperty -Name "BuldingBlock" -Value $count_BB
+    $temp | Add-Member -MemberType NoteProperty -Name "count" -Value $total
 
     $collectionWithItems +=$temp
 
@@ -1156,13 +1190,19 @@ Function KPI_generation{
     $offense_list_cache_raw_formated_epochtime = Format_Offense_closingReason -closingReasonList $closing_reason_list_cache -offense_list_cache $offense_list_cache_raw  -rule_list_cache $rule_list_cache
     $offense_list_cache_raw_formated_epochtime = Format_Offense_rules -offense_list_cache $offense_list_cache_raw_formated_epochtime -rule_list_cache $rule_list_cache
     $offense_list_cache = $offense_list_cache_raw_formated_epochtime | ?{$_.offense_source -ne "Offense Monitoring Event"}
-
+    <#
+    $params =@(
+        start_date = $start_date
+        end_date = $end_date
+        offense_list_cache = $offense_list_cache
+    )
+    #>
 
     $KPI_rule_and_BB_modified=KPI_rule_and_BB_modified -start_date $start_date -end_date $end_date
     $KPI_rule_and_BB_modified_status = KPI_rule_and_BB_modified_status -rule_list $KPI_rule_and_BB_modified
     $KPI_rules_status = KPI_rules_status -rule_list $rule_list_cache
     $KPI_closingReason_by_rule=(KPI_closingReason_by_rule -start_date $start_date -end_date $end_date -closingReasonList $closing_reason_list_cache -offense_list_cache (KPI_offense_closed -start_date $start_date -end_date $end_date -offense_list_cache $offense_list_cache) -rule_list_cache $rule_list_cache) |?{$_.count -ne 0}| sort -Descending count
-    $KPI_offense_by_rule=(KPI_offense_by_rule -offense_list_cache $offense_list_cache -rule_list_cache $rule_list_cache -start_date $start_date -end_date $end_date) | sort  -Descending count
+    $KPI_offense_by_rule=(KPI_offense_by_rule -offense_list_cache $offense_list_cache -rule_list_cache $rule_list_cache -start_date $start_date -end_date $end_date)  <#|?{$_.count -ne 0}#>| sort  -Descending count
     $KPI_closingReason=(KPI_closingReason -start_date $start_date -end_date $end_date -closingReasonList $closing_reason_list_cache -offense_list_cache $offense_list_cache) | sort -Descending count
     $KPI_offense_status=(KPI_offense_status -start_date $start_date -end_date $end_date -offense_list_cache $offense_list_cache)
     $KPI_offense_full_dataset=(Format_Offense -offense_list_cache $offense_list_cache)
@@ -1191,8 +1231,10 @@ Function KPI_generation{
     Remove-Item -Path $output -ErrorAction SilentlyContinue
 
     $KPI_rule_and_BB_modified | export-excel -path $output -WorksheetName "rule_and_BB_modified" -TableName "rule_and_BB_modified"
-    
-    Create_chart_excel -value $KPI_rule_and_BB_modified_status -output $output -worksheetName "KPI_rule_and_BB_modified_status" -title "Tuning SIEM" -Xrange "Rule_BB_status" -Yrange "count" -chartType "columnstacked" -noLegend
+    #############
+    #Create_chart_excel -value $KPI_rule_and_BB_modified_status -output $output -worksheetName "KPI_rule_and_BB_modified_status" -title "Tuning SIEM" -Xrange "Rule_BB_status" -Yrange "total" -chartType "columnstacked" -noLegend
+    $KPI_rule_and_BB_modified_status | Export-Excel -path $output -worksheetName "KPI_rule_and_BB_modified_status"
+
     $KPI_closingReason_by_rule | Export-Excel -path $output -worksheetName "closingReason_by_rule"
     
     $KPI_rules_status | Export-Excel -path $output -worksheetName "Rules_status" -TableName "Rules_status"
