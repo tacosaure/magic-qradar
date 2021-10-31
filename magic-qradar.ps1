@@ -12,8 +12,9 @@ param(
     [Parameter(Mandatory)] $qradar_api_key="",
     $start_date = (Get-Date "01/01/1970"),
     $end_date = (get-date),
-    $ReferenceSet_json = '',
-    $ReferenceSet_csv = '',
+    $IOC_json = '',
+    $IOC_csv = '',
+    [switch] $expandIOC,
     $delimiter = ";",
     $listReferenceSet =$null,
     [switch] $defaultTTL=$false,
@@ -822,11 +823,13 @@ Param (
             else { Write-host "Error in if condition : return value = $return_status"}
 }
 
-Function jsonMISP_to_Qradar_ReferenceSet {
+Function jsonMISP_to_Qradar_ReferenceSet_expand {
 Param (
     [parameter(mandatory)] $json
 )
-    
+    # to implement
+
+    <#
     $info = $json.event.info 
     $published =  $json.event.date
     $dataset = $json.Event.Attribute
@@ -844,13 +847,39 @@ Param (
 
         Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data
     }
+    #>
 }
 
-Function csv_to_Qradar_ReferenceSet {
+Function jsonMISP_to_Qradar_ReferenceSet {
     Param (
-        [parameter(mandatory)] $csv
+        [parameter(mandatory)] $json
     )
-    $RS_timeout_type = "LAST_SEEN"
+
+        $info = $json.event.info 
+        $published =  $json.event.date
+        $dataset = $json.Event.Attribute
+        $file_extension = ".csv"
+    
+        $RS_name_source = "MISP_event_"+$json.event.id
+    
+        $types = $dataset | select type -Unique
+    
+        $types | %{
+            $current = $_
+            $RS_data = $dataset | where {$_.type -match $current.type}
+            $RS_type = $current.type
+            $RS_name = $RS_name_source +"_"+$current.type
+    
+            Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data
+        }
+    }
+
+Function csv_to_Qradar_ReferenceSet_expand {
+    Param (
+        [parameter(mandatory)] $csv,
+        $RS_timeout_type = "LAST_SEEN"
+    )
+    
     $RS_name_source = $ReferenceSet_csv.split('.')[0]
 
     $collectionWithItems =@()
@@ -904,6 +933,49 @@ Function csv_to_Qradar_ReferenceSet {
         }
     }
     return $collectionWithItems
+
+}
+
+Function csv_to_Qradar_ReferenceSet {
+    Param (
+        [parameter(mandatory)] $csv,
+        $RS_timeout_type = "LAST_SEEN",
+        $RS_name_search_temp = "IOC_search",
+        $RS_name_detection = "IOC_detection"
+    )
+    $TTL = 14
+
+    #$RS_name = $csv.split('.')[0]
+    $RS_name_set = @()
+    $RS_name_set += $RS_name_search_temp
+    $RS_name_set += $RS_name_detection
+
+    $collectionWithItems =@()
+    
+    $response=$null
+    $current_type_list = $csv.type | select -unique
+    $current_type_list | %{
+        $current_type = $_
+        $RS_data_current_type = $csv | where {$_.type -eq $current_type}
+        foreach ($RS_name in $RS_name_set){
+            $RS_name += "_"+$current_type
+            $RS_name = $RS_name.ToUpper()
+            $RS_data = $RS_data_current_type
+            $RS_type = $current_type
+
+            $response = Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data -RS_ttl_day $TTL
+            
+            if($RS_name -like "IOC_search*"){
+                $temp = New-Object System.Object
+                $temp | Add-Member -MemberType NoteProperty -Name "Reference_Set_Name" -Value $RS_name
+                $temp | Add-Member -MemberType NoteProperty -Name "Reference_Set_Type" -Value $RS_type
+                $temp | Add-Member -MemberType NoteProperty -Name "Reference_Set_Threat" -Value "NA"
+                $temp | Add-Member -MemberType NoteProperty -Name "Reference_Set_TLP" -Value "NA"
+                $collectionWithItems +=$temp
+            }
+        }
+    }
+    return $collectionWithItems
 }
 
 Function Search-ReferenceSet {
@@ -913,8 +985,6 @@ Function Search-ReferenceSet {
     )
     if($null -eq $start_date){$start_date = " LAST 10 DAYS "}
     else {$start_date = " START " +$start_date}
-
-    Write-Host ("inside of Search-ReferenceSet")
 
     $collectionWithItems = @()
 
@@ -989,7 +1059,7 @@ Function Get-AQLConditions {
 
 Function Format_Offense{
     param(
-    [parameter(mandatory)]$offense_list_cache=""
+    [parameter(mandatory)]$offense_list_cache
     )
 
         $out= $offense_list_cache | 
@@ -1776,15 +1846,23 @@ if($test){
     Get-SearchListName
 }
 else {
-    if ($ReferenceSet_json -ne '')
+    if ($IOC_json -ne '')
     {
-        $RS_set = jsonMISP_to_Qradar_ReferenceSet -json (get-content $ReferenceSet_json | ConvertFrom-Json)
+        $RS_set = jsonMISP_to_Qradar_ReferenceSet -json (get-content $IOC_json | ConvertFrom-Json)
         Search-ReferenceSet -RS_set $RS_set
         
     }
-    elseif ($ReferenceSet_csv -ne '')
+    elseif ($IOC_csv -ne '')
     {
-        $RS_set = csv_to_Qradar_ReferenceSet -csv (get-content $ReferenceSet_csv | ConvertFrom-Csv -Delimiter $delimiter)
+        if($expandIOC){
+            #RS by threat by type by TLP => nb of RS = threat * type * tlp
+            $RS_set = csv_to_Qradar_ReferenceSet_expand -csv (get-content $IOC_csv | ConvertFrom-Csv -Delimiter $delimiter)
+        }
+        else{
+            #only temp RS for searching => flush the RS and set new temp value (TTL 1 week) => nb of RS = 1 temp RS for searching (TTL 1 week) + 1 RS for detection (TTL 3 weeks)
+            $RS_set = csv_to_Qradar_ReferenceSet -csv (get-content $IOC_csv | ConvertFrom-Csv -Delimiter $delimiter)
+        }
+        
         Search-ReferenceSet -RS_set $RS_set
     }
     elseif($null -ne $listReferenceSet)
