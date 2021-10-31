@@ -2,7 +2,9 @@
         03/06/2021 (dd/MM/YYYY)
         IBM QRADAR API version 14.0
 
-        Requirement : importExcel module
+        Requirement : 
+            - importExcel module (powershell)
+            - rights granted to the qradar SEC token (https://www.ibm.com/docs/en/qsip/7.3.3?topic=api-restful-overview)
 
 #>
 
@@ -22,7 +24,7 @@ param(
     $ttl_min,
     $ttl_sec,
     $searchID,
-    $checkSearchStatus,
+    [switch]$checkSearchStatus,
     [switch] $cancelSearch,
     $runSearch,
     [switch] $saveSearch,
@@ -717,7 +719,7 @@ Function Get-SearchResults{
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     
     
-    $url = $qradar_api_url + 'ariel/searches/' + $savedSearchID +"/results"
+    $url = $qradar_api_url + 'ariel/searches/' + $SearchID +"/results"
     
     $Error.Clear()
     try{$response = Invoke-RestMethod -Method Get $url -Headers $headers}
@@ -1645,10 +1647,6 @@ if($test){
     Get-SearchList
 }
 else {
-    <#  if (($ReferenceSet_json -eq '') -and ($ReferenceSet_csv -eq '') -and ($listReferenceSet -eq $null))
-    {
-        KPI_generation -start_date $start_date -end_date $end_date
-    } #>
     if ($ReferenceSet_json -ne '')
     {
         jsonMISP_to_Qradar_ReferenceSet -json (get-content $ReferenceSet_json | ConvertFrom-Json)
@@ -1659,10 +1657,10 @@ else {
         csv_to_Qradar_ReferenceSet -csv (get-content $ReferenceSet_csv | ConvertFrom-Csv -Delimiter $delimiter)
         
     }
-    elseif($listReferenceSet -ne $null)
+    elseif($null -ne $listReferenceSet)
     {
-        if($listReferenceSet.length -gt 1)
-        {(Get-ReferenceSet -RSName $listReferenceSet) | select @{Name="value";Expression={$_.data.value}},@{Name="last_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.data.last_seen}},@{Name="first_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.data.first_seen}},time_to_live,timeout_type | sort last_seen
+        if($listReferenceSet.length -gt 1){
+            (Get-ReferenceSet -RSName $listReferenceSet) | select @{Name="value";Expression={$_.data.value}},@{Name="last_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.data.last_seen}},@{Name="first_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.data.first_seen}},time_to_live,timeout_type | sort last_seen
         }
         else{
         (Get-ReferenceSet) | select name,element_type,number_of_elements,@{Name="Creation_time";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.creation_time}},time_to_live,timeout_type | sort name
@@ -1673,6 +1671,17 @@ else {
         if($cancelSearch){
             Update-Search -SearchID $searchID -status "CANCELED"
             Write-Host "The search $searchID has been canceled"
+        }
+        elseif($checkSearchStatus){
+            $result = Get-Search -SearchID $searchID
+            
+            Write-Host ("AQL query: "+$result.query_string)
+            Write-Host ("Search ID: "+$result.search_id)
+            Write-Host ("Search status: "+$result.status)
+            Write-Host ("Save results: "+$result.save_result.tostring)
+            Write-Host ("Record count: "+$result.record_count)
+            Write-Host ("Query execution time: "+$result.query_execution_time +"ms")
+            $result
         }
         else{
             if($saveSearch){
@@ -1686,18 +1695,17 @@ else {
     }
     elseif ($null -ne $runSearch) {
         $result = Create-Search -AQL $runSearch
-        Write-Host "run AQL: $runSearch"
-        $result | select name
-    }
-    
-    $runSearch
+        Write-Host "AQL query: $runSearch"
+        Write-Host ("Search ID: "+$result.search_id)
+        Write-Host ("Search status: "+$result.status)
+        Write-Host ("Save results: "+$result.save_result)
+        Write-Host ("Record count: "+$result.record_count)
+        Write-Host ("Query execution time: "+$result.query_execution_time +"ms")
 
+        $result 
+    }
     else{
         KPI_generation -start_date $start_date -end_date $end_date
     }
-    #elseif($listReferenceSetValue -ne '')
-    #{
-    #    (Get-ReferenceSet -RSName $listReferenceSetValue).data | select value,@{Name="last_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.last_seen}},@{Name="first_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.first_seen}} | sort last_seen
-    #}
 }
 
