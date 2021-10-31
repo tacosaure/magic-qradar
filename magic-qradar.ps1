@@ -683,10 +683,13 @@ Function Delete-Search{
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     
     
-    $url = $qradar_api_url + 'ariel/searches/' + $savedSearchID
+    $url = $qradar_api_url + 'ariel/searches/' + $SearchID
     
     $Error.Clear()
-    try{$response = Invoke-RestMethod -Method Delete $url -Headers $headers}
+    try{
+        $response = Invoke-RestMethod -Method Delete $url -Headers $headers
+        Write-Host "The search $SearchID has been deleted"
+    }
     catch { 
         Write-verbose "Error occured in Delete-Search function"
     }
@@ -727,6 +730,24 @@ Function Get-SearchResults{
         Write-verbose "Error occured in Get-SearchResults function"
     }
     return $response
+}
+
+Function Get-SearchListName{
+    param(
+        $SearchList = (Get-SearchList)
+    )
+    $collectionWithItems = @()
+    $SearchList | %{
+        $searchinfo = Get-Search -SearchID $_
+        $temp = New-Object System.Object
+        $temp | Add-Member -MemberType NoteProperty -Name "searchId" -Value $searchinfo.search_id
+        $temp | Add-Member -MemberType NoteProperty -Name "AQL query" -Value $searchinfo.query_string
+        $temp | Add-Member -MemberType NoteProperty -Name "Search status" -Value $searchinfo.status
+        $temp | Add-Member -MemberType NoteProperty -Name "Record count" -Value $searchinfo.record_count
+        $temp | Add-Member -MemberType NoteProperty -Name "Query execution time" -Value $searchinfo.query_execution_time
+        $collectionWithItems +=$temp
+    }
+    return $collectionWithItems
 }
 
 Function Data_to_Qradar_ReferenceSet {
@@ -1644,6 +1665,9 @@ Function KPI_generation{
 
 if($test){
     #Get-SearchResults -SearchID 'a283ca83-83f0-4ecc-bfab-e0af945a74ab'
+    #Get-Search -SearchID 'bd1bab49-b8f5-49dd-8900-75828e87c106'
+    Get-SearchList
+    Delete-Search -SearchID 'bd1bab49-b8f5-49dd-8900-75828e87c106'
     Get-SearchList
 }
 else {
