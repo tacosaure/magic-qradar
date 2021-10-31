@@ -13,7 +13,14 @@ param(
     $ReferenceSet_json = '',
     $ReferenceSet_csv = '',
     $delimiter = ";",
-    [switch] $listReferenceSet =$false
+    $listReferenceSet =$null,
+    [switch] $defaultTTL=$false,
+    $ttl_year,
+    $ttl_month,
+    $ttl_day,
+    $ttl_hour,
+    $ttl_min,
+    $ttl_sec
 )
 
 
@@ -24,6 +31,11 @@ $headers.Add('Accept','application/json')
 $headers.Add('SEC',$qradar_api_key)
 
 $start_epoch_time = Get-Date "01/01/1970"
+
+$tlp_red_ttl = 12
+$tlp_amber_ttl = 9
+$tlp_green_ttl = 6
+$tlp_white_ttl = 3
 
 function Get-epochTime{
     param(
@@ -203,12 +215,29 @@ Function PivotChartTable{
 
 
 Function Create-ReferenceSet{
-Param ($RSName, $RSType)
+Param ($RSName, $RSType, 
+    $ttl_year,
+    $ttl_month,
+    $ttl_day,
+    $ttl_hour,
+    $ttl_min,
+    $ttl_sec,
+    $timeout_type = "UNKNOWN"
+    )
 
+    $ttl="&time_to_live="
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+if($ttl_year -ne $null) {$ttl +=$ttl_year.toString() + " year "}
+if($ttl_month -ne $null) {$ttl +=$ttl_month.toString() + " month "}
+if($ttl_day -ne $null) {$ttl +=$ttl_day.toString() + " day "}
+if($ttl_hour -ne $null) {$ttl +=$ttl_hour.toString() + " hour "}
+if($ttl_min -ne $null) {$ttl +=$ttl_min.toString() + " min "}
+if($ttl_sec -ne $null) {$ttl +=$ttl_sec.toString() + " sec "}
+$ttl = [uri]::EscapeUriString($ttl)
+if($ttl -eq "&time_to_live="){$ttl=""}
 
-$url = $qradar_api_url + 'reference_data/sets?element_type='+ $RSType +'&name='+ $RSName
+$url = $qradar_api_url + 'reference_data/sets?element_type='+ $RSType +'&name='+ $RSName + $ttl + "&timeout_type="+$timeout_type
 
 $response = Invoke-RestMethod -Method Post $url -Headers $headers
 $response
@@ -485,7 +514,14 @@ Function Data_to_Qradar_ReferenceSet {
 Param (
         $RSName,
         $RStype,
-        $RSdata
+        $RSdata,
+        $RS_ttl_year,
+        $RS_ttl_month,
+        $RS_ttl_day,
+        $RS_ttl_hour,
+        $RS_ttl_min,
+        $RS_ttl_sec,
+        $RS_timeout_type
 )
     switch ( $RStype )
             {
@@ -518,7 +554,7 @@ Param (
             }
             elseif ($return_status -eq $false)
             {
-                Create-ReferenceSet -RSName $RSName -RSType $RS_type
+                Create-ReferenceSet -RSName $RSName -RSType $RS_type -ttl_year $RS_ttl_year -ttl_month $RS_ttl_month -ttl_day $RS_ttl_day -ttl_hour $RS_ttl_hour -ttl_min $RS_ttl_min -ttl_sec $RS_ttl_sec -timeout_type $RS_timeout_type
                 $count=$RSdata.value.count
                 $ptr=1
                 ForEach ($element2 in $RSdata.value) {
@@ -549,6 +585,7 @@ Param (
         $RS_data = $dataset | where {$_.type -match $current.type}
         $RS_type = $current.type
         $RS_name = $RS_name_source +"_"+$current.type
+
         Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data
     }
 }
@@ -557,7 +594,7 @@ Function csv_to_Qradar_ReferenceSet {
     Param (
             $csv
     )
-
+    $RS_timeout_type = "LAST_SEEN"
     $RS_name_source = $ReferenceSet_csv.split('.')[0].toUpper()
 
     $APT_list = $csv.threats | select -unique
@@ -581,7 +618,20 @@ Function csv_to_Qradar_ReferenceSet {
                 $RS_type = $current_apt_tlp_type
                 $RS_data = $RS_data_current_apt_tlp_type
 
-                Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data
+
+                if($defaultTTL) {
+                    $effectiveTTL = ""
+                    switch($current_apt_tlp)
+                    {
+                        "red" {$effectiveTTL = $tlp_red_ttl}
+                        "amber" {$effectiveTTL = $tlp_amber_ttl}
+                        "green" {$effectiveTTL = $tlp_green_ttl}
+                        "white" {$effectiveTTL = $tlp_white_ttl}
+                    }
+                    Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data -RS_ttl_month $effectiveTTL
+                }
+                else {Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data -RS_ttl_year $ttl_year -RS_ttl_month $ttl_month -RS_ttl_day $ttl_day -RS_ttl_hour $ttl_hour -RS_ttl_min $ttl_min -RS_ttl_sec $ttl_sec -RS_timeout_type $RS_timeout_type}
+                
             }
 
         }
@@ -1373,7 +1423,7 @@ Function KPI_generation{
         
  }   
 
-if (($ReferenceSet_json -eq '') -and ($ReferenceSet_csv -eq '') -and ($listReferenceSet -eq $false))
+if (($ReferenceSet_json -eq '') -and ($ReferenceSet_csv -eq '') -and ($listReferenceSet -eq $null))
 {
     KPI_generation -start_date $start_date -end_date $end_date
 }
@@ -1387,7 +1437,16 @@ elseif ($ReferenceSet_csv -ne '')
     csv_to_Qradar_ReferenceSet -csv (get-content $ReferenceSet_csv | ConvertFrom-Csv -Delimiter $delimiter)
     
 }
-elseif($listReferenceSet)
+elseif($listReferenceSet -ne $null)
 {
-    (Get-ReferenceSet) | select name,@{Name="Creation_time";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.creation_time}} | sort name
+    if($listReferenceSet.length -gt 1)
+    {(Get-ReferenceSet -RSName $listReferenceSet) | select @{Name="value";Expression={$_.data.value}},@{Name="last_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.data.last_seen}},@{Name="first_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.data.first_seen}},time_to_live,timeout_type | sort last_seen
+    }
+    else{
+    (Get-ReferenceSet) | select name,element_type,number_of_elements,@{Name="Creation_time";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.creation_time}},time_to_live,timeout_type | sort name
+    }
 }
+#elseif($listReferenceSetValue -ne '')
+#{
+#    (Get-ReferenceSet -RSName $listReferenceSetValue).data | select value,@{Name="last_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.last_seen}},@{Name="first_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.first_seen}} | sort last_seen
+#}
