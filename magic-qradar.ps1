@@ -10,7 +10,9 @@ param(
     [Parameter(Mandatory)] $qradar_api_key="",
     $start_date = (Get-Date "01/01/1970"),
     $end_date = (get-date),
-    $ReferenceSet_json = ''
+    $ReferenceSet_json = '',
+    $ReferenceSet_csv = '',
+    $delimiter = ";"
 )
 
 
@@ -227,9 +229,16 @@ Write-verbose "$RSName has been filled"
 
 Function Update-ReferenceSet{
     Param ($RSName, $RSvalue, $RSAvailable)
-    if($RSAvailable.data.value.contains($RSvalue)) 
-        {Write-Verbose "$RSvalue already exists in $RSName"}
+    if($RSAvailable.data -ne $null)
+    {
+        if($RSAvailable.data.value.contains($RSvalue)) 
+            {Write-Verbose "$RSvalue already exists in $RSName"}
+        else {
+            Set-ReferenceSet -RSName $RSName -RSvalue $RSvalue
+            Write-verbose "$RSName has been updated with new data"}
+    }
     else {
+        write-verbose "$RSName is empty"
         Set-ReferenceSet -RSName $RSName -RSvalue $RSvalue
         Write-verbose "$RSName has been updated with new data"}
 }
@@ -463,7 +472,7 @@ Function Get-rulelist_and_BBlist{
 
 
 
-Function MISP_to_Qradar_ReferenceSet {
+Function Data_to_Qradar_ReferenceSet {
 Param (
         $RSName,
         $RStype,
@@ -476,17 +485,24 @@ Param (
                 md5 {$RS_type = 'ALNIC'}
                 filename {$RS_type = 'ALNIC'}
                 domain {$RS_type = 'ALNIC'}
+                fqdn {$RS_type = 'ALNIC'}
+                email {$RS_type = 'ALNIC'}
                 url {$RS_type = 'ALNIC'}
                 hostname {$RS_type = 'ALNIC'}
                 ip-dst {$RS_type = 'IP'}
+                ip {$RS_type = 'IP'}
                 default {$RS_type = 'ALNIC'}
             }
             $return_status = Check-ReferenceSet -RSName $RSName
             if($return_status -eq $true)
             {
                 $RS_available = Get-ReferenceSet -RSName $RSName
+                $count=$RSdata.value.count
+                $ptr=1
                 ForEach ($element1 in $RSdata.value) {
-                Update-ReferenceSet -RSName $RSName -RSvalue $element1 -RSAvailable $RS_available
+                    write-host "[$ptr/$count] job"
+                    Update-ReferenceSet -RSName $RSName -RSvalue $element1 -RSAvailable $RS_available
+                    $ptr++
                 }
                 Write-Verbose "Check-RefereceSet = true => Reference Set $RSname already exists"
                 #write-host "$RS_name need to be updated. Check each value."
@@ -524,7 +540,42 @@ Param (
         $RS_data = $dataset | where {$_.type -match $current.type}
         $RS_type = $current.type
         $RS_name = $RS_name_source +"_"+$current.type
-        MISP_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data
+        Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data
+    }
+}
+
+Function csv_to_Qradar_ReferenceSet {
+    Param (
+            $csv
+    )
+
+    $RS_name_source = $ReferenceSet_csv.split('.')[0].toUpper()
+
+    $APT_list = $csv.threats | select -unique
+
+    $APT_list | %{
+        $current_apt = $_
+        $RS_data_current_apt = $csv | where {$_.threats -eq $current_apt}
+        $IOC_APT = $current_apt.replace(" ","")
+
+        $current_TLP_list = $RS_data_current_apt.tlp | select -unique
+        $current_TLP_list | %{
+            $current_apt_tlp = $_
+            $RS_data_current_apt_tlp = $RS_data_current_apt | where {$_.tlp -eq $current_apt_tlp}
+
+            $current_type_list = $RS_data_current_apt_tlp.type | select -unique
+
+            $current_type_list | %{
+                $current_apt_tlp_type = $_
+                $RS_data_current_apt_tlp_type = $RS_data_current_apt_tlp | where {$_.type -eq $current_apt_tlp_type}
+                $RS_name = "IOC"+"_"+$current_apt_tlp_type+"_"+$RS_name_source +"_"+$IOC_APT+"_"+$current_apt_tlp
+                $RS_type = $current_apt_tlp_type
+                $RS_data = $RS_data_current_apt_tlp_type
+
+                Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data
+            }
+
+        }
     }
 }
 
@@ -1313,12 +1364,17 @@ Function KPI_generation{
         
  }   
 
-if ($ReferenceSet_json -eq '')
+if (($ReferenceSet_json -eq '') -and ($ReferenceSet_csv -eq ''))
 {
     KPI_generation -start_date $start_date -end_date $end_date
 }
-else
+elseif ($ReferenceSet_json -ne '')
 {
     jsonMISP_to_Qradar_ReferenceSet -json (get-content $ReferenceSet_json | ConvertFrom-Json)
+    
+}
+elseif ($ReferenceSet_csv -ne '')
+{
+    csv_to_Qradar_ReferenceSet -csv (get-content $ReferenceSet_csv | ConvertFrom-Csv -Delimiter $delimiter)
     
 }
