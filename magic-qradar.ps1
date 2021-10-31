@@ -20,7 +20,13 @@ param(
     $ttl_day,
     $ttl_hour,
     $ttl_min,
-    $ttl_sec
+    $ttl_sec,
+    $searchID,
+    $checkSearchStatus,
+    [switch] $cancelSearch,
+    $runSearch,
+    [switch] $saveSearch,
+    [switch] $test=$false
 )
 
 
@@ -507,8 +513,219 @@ Function Get-rulelist_and_BBlist{
     return $out
 }
 
+Function Get-SavedSearchList{
 
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = $qradar_api_url + 'ariel/saved_searches'
+    
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Get $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Get-SavedSearchList function"
+    }
+    return $response
+}
 
+Function Get-SavedSearch{
+    param(
+        [parameter(mandatory)] $savedSearchID
+    )
+    
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = $qradar_api_url + 'ariel/saved_searches/' + $savedSearchID
+    
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Get $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Get-SavedSearch function"
+    }
+    return $response
+}
+
+Function Update-SavedSearch{
+    param(
+        [parameter(mandatory)] $savedSearchID,
+        [parameter(mandatory)] $savedSearchBody #JSON
+    )
+    
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = " --data-binary "+$savedSearchBody+$qradar_api_url + 'ariel/saved_searches/' + $savedSearchID
+    
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Post $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Update-SavedSearch function"
+    }
+    return $response
+}
+
+Function Delete-SavedSearch{
+    param(
+        [parameter(mandatory)] $savedSearchID
+    )
+    
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = $qradar_api_url + 'ariel/saved_searches/' + $savedSearchID
+    
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method DELETE $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Delete-SavedSearch function"
+    }
+    return $response
+}
+
+Function Get-SearchList{
+
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = $qradar_api_url + 'ariel/searches'
+    
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Get $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Get-SearchList function"
+    }
+    return $response
+}
+
+Function Create-Search{
+    param(
+        [parameter(mandatory)] $AQL
+    )
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    $AQL = [uri]::EscapeUriString($AQL)
+
+    $url = $qradar_api_url + 'ariel/searches?query_expression=' + $AQL
+    
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Post $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Create-Search function"
+    }
+    return $response
+}
+
+Function Get-Search{
+    param(
+        [parameter(mandatory)] $SearchID
+    )
+    
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = $qradar_api_url + 'ariel/searches/' + $SearchID
+
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Get $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Get-Search function"
+    }
+    return $response
+}
+
+Function Update-Search{
+    param(
+        [parameter(mandatory)] $SearchID,
+        [switch] $saveResults=$false,
+        $status
+    )
+    
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+
+    
+    $url = $qradar_api_url + 'ariel/searches/' + $savedSearchID
+    
+    if($saveResults){
+        $url += "?save_results=true"
+        if($status -ieq "CANCELED"){
+            $url += "&status=CANCELED"
+        }
+        else {
+            Write-verbose "Status accepts only 'CANCELED' value"
+        }
+    }
+    else{
+        if($status -ieq "CANCELED"){
+            $url += "?status=CANCELED"
+        }
+        else {
+            Write-verbose "Status accepts only 'CANCELED' value"
+        }
+    }
+
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Post $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Update-Search function"
+    }
+    return $response
+}
+
+Function Delete-Search{
+    param(
+        [parameter(mandatory)] $SearchID
+    )
+    
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = $qradar_api_url + 'ariel/searches/' + $savedSearchID
+    
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Delete $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Delete-Search function"
+    }
+    return $response
+}
+
+Function Get-SearchMetadata{
+    param(
+        [parameter(mandatory)] $SearchID
+    )
+    
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = $qradar_api_url + 'ariel/searches/' + $savedSearchID + "/metadada"
+    
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Get $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Get-SearchMetadata function"
+    }
+    return $response
+}
+
+Function Get-SearchResults{
+    param(
+        [parameter(mandatory)] $SearchID
+    )
+    
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = $qradar_api_url + 'ariel/searches/' + $savedSearchID +"/results"
+    
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Get $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Get-SearchResults function"
+    }
+    return $response
+}
 
 Function Data_to_Qradar_ReferenceSet {
 Param (
@@ -525,18 +742,18 @@ Param (
 )
     switch ( $RStype )
             {
-                sha256 {$RS_type = 'ALNIC'}
-                sha1 {$RS_type = 'ALNIC'}
-                md5 {$RS_type = 'ALNIC'}
-                filename {$RS_type = 'ALNIC'}
-                domain {$RS_type = 'ALNIC'}
-                fqdn {$RS_type = 'ALNIC'}
-                email {$RS_type = 'ALNIC'}
-                url {$RS_type = 'ALNIC'}
-                hostname {$RS_type = 'ALNIC'}
-                ip-dst {$RS_type = 'IP'}
-                ip {$RS_type = 'IP'}
-                default {$RS_type = 'ALNIC'}
+                sha256 {$RS_type = 'ALNIC';break}
+                sha1 {$RS_type = 'ALNIC';break}
+                md5 {$RS_type = 'ALNIC';break}
+                filename {$RS_type = 'ALNIC';break}
+                domain {$RS_type = 'ALNIC';break}
+                fqdn {$RS_type = 'ALNIC';break}
+                email {$RS_type = 'ALNIC';break}
+                url {$RS_type = 'ALNIC';break}
+                hostname {$RS_type = 'ALNIC';break}
+                ip-dst {$RS_type = 'IP';break}
+                ip {$RS_type = 'IP';break}
+                default {$RS_type = 'ALNIC';break}
             }
             $return_status = Check-ReferenceSet -RSName $RSName
             if($return_status -eq $true)
@@ -623,10 +840,10 @@ Function csv_to_Qradar_ReferenceSet {
                     $effectiveTTL = ""
                     switch($current_apt_tlp)
                     {
-                        "red" {$effectiveTTL = $tlp_red_ttl}
-                        "amber" {$effectiveTTL = $tlp_amber_ttl}
-                        "green" {$effectiveTTL = $tlp_green_ttl}
-                        "white" {$effectiveTTL = $tlp_white_ttl}
+                        "red" {$effectiveTTL = $tlp_red_ttl;break}
+                        "amber" {$effectiveTTL = $tlp_amber_ttl;break}
+                        "green" {$effectiveTTL = $tlp_green_ttl;break}
+                        "white" {$effectiveTTL = $tlp_white_ttl;break}
                     }
                     Data_to_Qradar_ReferenceSet -RSName $RS_name -RStype $RS_type -RSdata $RS_data -RS_ttl_month $effectiveTTL
                 }
@@ -1423,30 +1640,64 @@ Function KPI_generation{
         
  }   
 
-if (($ReferenceSet_json -eq '') -and ($ReferenceSet_csv -eq '') -and ($listReferenceSet -eq $null))
-{
-    KPI_generation -start_date $start_date -end_date $end_date
+if($test){
+    #Get-SearchResults -SearchID 'a283ca83-83f0-4ecc-bfab-e0af945a74ab'
+    Get-SearchList
 }
-elseif ($ReferenceSet_json -ne '')
-{
-    jsonMISP_to_Qradar_ReferenceSet -json (get-content $ReferenceSet_json | ConvertFrom-Json)
-    
-}
-elseif ($ReferenceSet_csv -ne '')
-{
-    csv_to_Qradar_ReferenceSet -csv (get-content $ReferenceSet_csv | ConvertFrom-Csv -Delimiter $delimiter)
-    
-}
-elseif($listReferenceSet -ne $null)
-{
-    if($listReferenceSet.length -gt 1)
-    {(Get-ReferenceSet -RSName $listReferenceSet) | select @{Name="value";Expression={$_.data.value}},@{Name="last_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.data.last_seen}},@{Name="first_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.data.first_seen}},time_to_live,timeout_type | sort last_seen
+else {
+    <#  if (($ReferenceSet_json -eq '') -and ($ReferenceSet_csv -eq '') -and ($listReferenceSet -eq $null))
+    {
+        KPI_generation -start_date $start_date -end_date $end_date
+    } #>
+    if ($ReferenceSet_json -ne '')
+    {
+        jsonMISP_to_Qradar_ReferenceSet -json (get-content $ReferenceSet_json | ConvertFrom-Json)
+        
     }
+    elseif ($ReferenceSet_csv -ne '')
+    {
+        csv_to_Qradar_ReferenceSet -csv (get-content $ReferenceSet_csv | ConvertFrom-Csv -Delimiter $delimiter)
+        
+    }
+    elseif($listReferenceSet -ne $null)
+    {
+        if($listReferenceSet.length -gt 1)
+        {(Get-ReferenceSet -RSName $listReferenceSet) | select @{Name="value";Expression={$_.data.value}},@{Name="last_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.data.last_seen}},@{Name="first_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.data.first_seen}},time_to_live,timeout_type | sort last_seen
+        }
+        else{
+        (Get-ReferenceSet) | select name,element_type,number_of_elements,@{Name="Creation_time";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.creation_time}},time_to_live,timeout_type | sort name
+        }
+    }
+    elseif($searchID)
+    {
+        if($cancelSearch){
+            Update-Search -SearchID $searchID -status "CANCELED"
+            Write-Host "The search $searchID has been canceled"
+        }
+        else{
+            if($saveSearch){
+                Update-Search -SearchID $searchID -saveResults $saveSearch
+                Write-Host "The search $searchID has been saved"
+            }
+            else {
+                Get-SearchResults -SearchID $searchID
+            }
+        }
+    }
+    elseif ($null -ne $runSearch) {
+        $result = Create-Search -AQL $runSearch
+        Write-Host "run AQL: $runSearch"
+        $result | select name
+    }
+    
+    $runSearch
+
     else{
-    (Get-ReferenceSet) | select name,element_type,number_of_elements,@{Name="Creation_time";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.creation_time}},time_to_live,timeout_type | sort name
+        KPI_generation -start_date $start_date -end_date $end_date
     }
+    #elseif($listReferenceSetValue -ne '')
+    #{
+    #    (Get-ReferenceSet -RSName $listReferenceSetValue).data | select value,@{Name="last_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.last_seen}},@{Name="first_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.first_seen}} | sort last_seen
+    #}
 }
-#elseif($listReferenceSetValue -ne '')
-#{
-#    (Get-ReferenceSet -RSName $listReferenceSetValue).data | select value,@{Name="last_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.last_seen}},@{Name="first_seen";Expression={convert_epochtime_milliseconds -epoch_time_to_convert $_.first_seen}} | sort last_seen
-#}
+
