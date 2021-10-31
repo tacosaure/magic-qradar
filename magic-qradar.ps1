@@ -741,17 +741,28 @@ Function Get-SearchListName{
     param(
         $SearchList = (Get-SearchList)
     )
+
     $collectionWithItems = @()
-    $SearchList | %{
-        $searchinfo = Get-Search -SearchID $_
-        $temp = New-Object System.Object
-        $temp | Add-Member -MemberType NoteProperty -Name "searchId" -Value $searchinfo.search_id
-        $temp | Add-Member -MemberType NoteProperty -Name "AQL query" -Value $searchinfo.query_string
-        $temp | Add-Member -MemberType NoteProperty -Name "Search status" -Value $searchinfo.status
-        $temp | Add-Member -MemberType NoteProperty -Name "Record count" -Value $searchinfo.record_count
-        $temp | Add-Member -MemberType NoteProperty -Name "Query execution time" -Value $searchinfo.query_execution_time
-        $collectionWithItems +=$temp
+
+    if ($null -eq $SearchList)
+    {
+        Write-Host ("No search has been found")
     }
+    else{
+        $SearchList | %{
+            $searchinfo = Get-Search -SearchID $_
+            $temp = New-Object System.Object
+            $temp | Add-Member -MemberType NoteProperty -Name "searchId" -Value $searchinfo.search_id
+            $temp | Add-Member -MemberType NoteProperty -Name "AQL query" -Value $searchinfo.query_string
+            $temp | Add-Member -MemberType NoteProperty -Name "Search status" -Value $searchinfo.status
+            $temp | Add-Member -MemberType NoteProperty -Name "Record count" -Value $searchinfo.record_count
+            $temp | Add-Member -MemberType NoteProperty -Name "Progress" -Value $searchinfo.progress
+            $temp | Add-Member -MemberType NoteProperty -Name "Query execution time" -Value $searchinfo.query_execution_time
+            $collectionWithItems +=$temp
+        }
+    }
+    
+    
     return $collectionWithItems
 }
 
@@ -911,13 +922,15 @@ Function Search-ReferenceSet {
     foreach ($threats in $threats_list.Reference_Set_Threat){
         $current_RS = $RS_set | ?{$_.Reference_Set_Threat -eq $threats}
         $type_list = $current_RS| select -Unique Reference_Set_Type
+        #write-host ($type_list)
         $condition="" 
         $count_type = $type_list.Reference_Set_Type.count
         $ptr_type=1
         foreach ($type in $type_list.Reference_Set_Type){
             $ptr_rs = 1
-            $count_rs = $current_RS.count
-            foreach ($rs in $current_RS){
+            $current_RS_by_type = $current_RS | ?{$_.Reference_Set_Type -eq $type}
+            $count_rs = $current_RS_by_type.count
+            foreach ($rs in $current_RS_by_type){
                 $condition += Get-AQLConditions -type $type -RS_name $rs.Reference_Set_Name
                 if($ptr_rs -lt $count_rs){
                     $condition += " OR "
@@ -925,12 +938,13 @@ Function Search-ReferenceSet {
                 $ptr_rs++
             }
             
+           
             if($ptr_type -lt $count_type){
-                $condition += " OR "
+                $condition += " OR "                
             }
             $ptr_type++
+            
         }
-
         $condition += $start_date
         $AQL = "SELECT * FROM events WHERE " + $condition
         $search = Create-Search -AQL $AQL
@@ -956,17 +970,19 @@ Function Get-AQLConditions {
     
         switch ( $type )
             {
-                sha256 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}
-                sha1 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}
-                md5 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}
-                filename {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"filename`")";break}
-                domain {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}
-                fqdn {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}
-                email {$aql_condition = '';break}
-                url {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}
-                hostname {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}
-                ip-dst {$aql_condition = "REFERENCESETCONTAINS('$RS_name',sourceip) OR REFERENCESETCONTAINS('$RS_name',destinationip)";break}
-                ip {$aql_condition = "REFERENCESETCONTAINS('$RS_name',sourceip) OR REFERENCESETCONTAINS('$RS_name',destinationip)";break}
+                sha256 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}#to adapt
+                sha1 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}#to adapt
+                md5 {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"hash`")";break}#to adapt
+                filename {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"filename`")";break}#to adapt
+                domain {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}#to adapt
+                fqdn {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}#to adapt
+                email {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"sender`")";break} #to adapt
+                url {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}#to adapt
+                hostname {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break}#to adapt
+                ip-dst {$aql_condition = "REFERENCESETCONTAINS('$RS_name',sourceip) OR REFERENCESETCONTAINS('$RS_name',destinationip)";break}#to adapt
+                ip {$aql_condition = "REFERENCESETCONTAINS('$RS_name',sourceip) OR REFERENCESETCONTAINS('$RS_name',destinationip)";break}#to adapt
+                cve {$aql_condition = "REFERENCESETCONTAINS('$RS_name',`"URL`")";break} #to adapt
+                default {$aql_condition = "REFERENCESETCONTAINS('$RS_name',UTF8(payload))";break} #to adapt
             }
     return $aql_condition
 }
@@ -1810,7 +1826,16 @@ else {
                 Write-Host "The search $searchID has been saved"
             }
             else {
-                Get-SearchResults -SearchID $searchID
+                $result = Get-SearchResults -SearchID $searchID
+                
+                Write-Host ("AQL query: "+$result.query_string)
+                Write-Host ("Search ID: "+$result.search_id)
+                Write-Host ("Search status: "+$result.status)
+                Write-Host ("Progress: "+$result.progress +"%")
+                Write-Host ("Save results: "+$result.save_result.tostring)
+                Write-Host ("Record count: "+$result.record_count)
+                Write-Host ("Query execution time: "+$result.query_execution_time +"ms")
+                $result
             }
         }
     }
