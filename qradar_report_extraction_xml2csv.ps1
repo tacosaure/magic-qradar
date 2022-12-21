@@ -10,6 +10,7 @@ Get-childitem *.xml | %{$file = $_.Name
   $runManually = (Select-Xml $file -XPath "//void[@property=""runManually""]").Node.boolean
   $scheduled = (Select-Xml $file -XPath "//void[@property=""scheduled""]").Node.boolean
   $title = (Select-Xml $file -XPath "//void[@property=""title""]").Node[-1].string
+  $periodicitySchedule = (Select-Xml $file -XPath "//void[@property=""type""]").Node.object.string[-1]
 
   $output +=($true | Select  @{N='file';E={$file}},
                   @{N='author';E={$author}},
@@ -21,6 +22,7 @@ Get-childitem *.xml | %{$file = $_.Name
                   @{N='owner';E={$owner}},
                   @{N='runManually';E={if($runManually -like ''){"false"}else{$runManually}}},
                   @{N='scheduled';E={if($scheduled -like ''){"false"}else{$scheduled}}},
+                  @{N='periodicitySchedule';E={if($periodicitySchedule -cnotmatch '[A-Z]{2}'){"Manual"}else{$periodicitySchedule}}},
                   @{N='title';E={$title}}
           )
 }
