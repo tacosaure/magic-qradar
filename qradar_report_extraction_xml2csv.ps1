@@ -5,7 +5,7 @@ Get-childitem *.xml | %{$file = $_.Name
   $CreationTime = (Select-Xml $file -XPath "//void[@property=""creationTime""]").Node.long
   $description = (Select-Xml $file -XPath "//void[@property=""descrition""]").Node.string
   $mailAdresse = (Select-Xml $file -XPath "//void[@property=""mailAddress""]").Node.string
-  $name_id= (Select-Xml $file -XPath "//void[@property=""descrition""]").Node[-1].string
+  $name_id= (Select-Xml $file -XPath "//void[@property=""name""]").Node[-1].string
   $owner =  (Select-Xml $file -XPath "//void[@property=""owner""]").Node.string
   $runManually = (Select-Xml $file -XPath "//void[@property=""runManually""]").Node.boolean
   $scheduled = (Select-Xml $file -XPath "//void[@property=""scheduled""]").Node.boolean
