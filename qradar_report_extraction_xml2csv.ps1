@@ -19,8 +19,8 @@ Get-childitem *.xml | %{$file = $_.Name
                   @{N='mailAdresse';E={$mailAdresse}},
                   @{N='name_id';E={$name_id}},
                   @{N='owner';E={$owner}},
-                  @{N='runManually';E={$runManually}},
-                  @{N='scheduled';E={$scheduled}},
+                  @{N='runManually';E={if($runManually -like ''){"false"}else{$runManually}}},
+                  @{N='scheduled';E={if($scheduled -like ''){"false"}else{$scheduled}}},
                   @{N='title';E={$title}}
           )
 }
