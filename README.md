@@ -1,6 +1,11 @@
 # Project
 Multiple powershell scripts for IBM Qradar
 
+# Table of content
+1. [magic-qradar script](https://github.com/tacosaure/magic-qradar#magic-qradar-script)
+2. [qradar_report_extraction_xml2csv script](https://github.com/tacosaure/magic-qradar#qradar_report_extraction_xml2csv-script)
+
+
 ## magic-qradar script
 Powershell script to query Qradar and generate KPI
 
