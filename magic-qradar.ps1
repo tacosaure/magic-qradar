@@ -589,6 +589,61 @@ Function Delete-SavedSearch{
     return $response
 }
 
+Function Get-SavedSearchDependents{
+    param(
+            [parameter(mandatory)] $savedSearchID
+    )
+    
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = $qradar_api_url + 'ariel/saved_searches/' + $savedSearchID + '/dependents'
+
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Get $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Get-SavedSearchDependents function"
+    }
+    return $response
+}
+
+Function Get-SavedSearchDependentsTask{
+    param(
+            [parameter(mandatory)] $taskID
+    )
+    
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = $qradar_api_url + 'ariel/saved_search_dependent_tasks/' + $taskID
+
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Get $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Get-SavedSearchDependentsTask function"
+    }
+    return $response
+}
+
+Function Get-SavedSearchDependentsTaskResults{
+    param(
+            [parameter(mandatory)] $taskID
+    )
+    
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    
+    
+    $url = $qradar_api_url + 'ariel/saved_search_dependent_tasks/' + $taskID + '/results'
+
+    $Error.Clear()
+    try{$response = Invoke-RestMethod -Method Get $url -Headers $headers}
+    catch { 
+        Write-verbose "Error occured in Get-SavedSearchDependentsTaskResults function"
+    }
+    return $response
+}
+
+
 Function Get-SearchList{
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
