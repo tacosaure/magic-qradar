@@ -1,8 +1,11 @@
-# magic-qradar
- Powershell script to query Qradar and generate KPI
+#Project
+Multiple powershell scripts for IBM Qradar
 
-## Description
-### Overview
+## magic-qradar script
+Powershell script to query Qradar and generate KPI
+
+### Description
+#### Overview
 Powershell script allowing to query IBM Qradar easily in order to retrieve information or to generate KPI (Key Performance Indicators). 
 
 The script is composed of multiple functions grouped by their use:
@@ -13,12 +16,12 @@ The script is composed of multiple functions grouped by their use:
 5. KPI functions
 6. KPI generation (output) function
 
-### Parameters
+#### Parameters
 - qradar_api_key => token API generated within IBM Qradar
 - start_date => "dd/MM/YYYY" format.  Start date of the search. Default = epochtime (01/01/1970)
 - end_date => "dd/MM/YYYY" format. End date of the search. Default = now
 
-### Result
+#### Result
 The function KPI_generation is called by the main script. It generates a XLSX file, named _kpi_qradar.xslx_, wich is composed of 11 worksheets:
 - rule_and_BB_modified => list of rules and building block that have been created or modified during a period of time
 - KPI_rule_and_BB_modified_status => numbers of rules and building block that have been created or modified during a period of time + bar chart
@@ -41,18 +44,18 @@ The function KPI_generation is called by the main script. It generates a XLSX fi
 
 If you cannot install the importexcel powershell module, you can generate csv files for each sheets.
 
-## Requirements
+### Requirements
 - Powershell
 - Access to IBM Qradar API (API token)
 - [importexcel powershell module](https://www.powershellgallery.com/packages/ImportExcel/7.1.0)
 
-## First steps
+### First steps
 We need to add the IBM Qradar API URL in the script.
 ```
 $qradar_api_url = 'https://example_url_qradar.com/api/'
 ```
 
-## How to use the script
+### How to use the script
 To run the script, make sure you can reach your IBM Qradar console and execute the following command in powershell:
 ```
 .\magic-qradar.ps1 -qradar_api_key 'XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXX' [-start_date "dd/MM/YYYY"] [-end_date "dd/MM/YYYY"]
@@ -62,14 +65,26 @@ This script has been tested on IBM Qradar on CLOUD with the API version 14.0. Fu
 
 You may have warning messages by importexcel dealing with the closing Reason names that contains unsupported characters and have been converted into "\_" (closingReason_by_rule_stacked sheet). To solve this issue, it is a little bit tricky. No names refering cells (in a excel formula) can contains characters different than letters, numbers, "." and "\_". This is not a blocking point and you can skip these warnings.
 
-## Next improvements
+### Need to be tested
+- [ ] Get-SavedSearchDependentsTaskResults
+- [ ] Get-SavedSearchDependentsTask
+- [ ] Get-SavedSearchDependents
+
+### Next improvements
 - [ ] Add execution information
 - [ ] Add verbose mode information
 - [ ] Add a loading bar
 - [ ] Add comments
+- [ ] Create a report of objects dependency (BB, rule, saved searches, reference data ...)
 
-## Keywords
+### Keywords
 SIEM IBM Qradar KPI Automation SOC cyberanalyst reporting security operations center cybersecurity key performance indicators
 
 
-10/06/2021
+22/12/2022
+
+## qradar_report_extraction_xml2csv script
+Powershell script to retreive and convert basic/useful information from [qradar reports extraction files (xml)](https://www.ibm.com/docs/en/qsip/7.4?topic=content-exporting-all-custom-specific-type)
+
+Usecase : Review all qradar reports in order to delete those not used anymore. These data may be used with magic-qradar script in order to get the dependency related to those reports
+
