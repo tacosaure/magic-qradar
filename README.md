@@ -82,6 +82,19 @@ You may have warning messages by importexcel dealing with the closing Reason nam
 - [ ] Add comments
 - [ ] Create a report of objects dependency (BB, rule, saved searches, reference data ...)
 
+### Steps while waiting for improvement implementation
+#### BB dependencies (BB used by another rule/BB)
+1- GET - /analytics/building_blocks => get the list of the BB ID
+2- GET - /analytics/building_blocks/{id}/dependents => check dependencies and return the task ID for the following actions = id
+3- GET - /analytics/rules/rule_dependent_tasks/{task_id} => if still running, we can have the number of the dependancies (rule, saved search, historical correllation...) = number_of_dependents,task_components,task_components[0].number_of_dependents (custom rules),task_components[1].number_of_dependents (search criteria),task_components[2].number_of_dependents (offense saved searches),task_components[3].number_of_dependents (historical correlation profiles),id,status
+4- GET - /analytics/rules/rule_dependent_tasks/{task_id}/results => to get the name of the dependancies (name of the rule, saved search...) = dependent_id, dependent_name,dependent_type,dependent_owner,user_has_edit_permissions,blocking,dependent_group_ids
+
+#### Rule dependencies (rule used by another rule/BB)
+1- GET - /analytics/rules => get the list of the rule ID
+2- GET - /analytics/rules/{id}/dependents => check dependencies and return the task ID for the following actions = id
+3- GET - /analytics/rules/rule_dependent_tasks/{task_id} => if still running, we can have the number of the dependancies (rule, saved search, historical correllation...) = number_of_dependents,task_components,task_components[0].number_of_dependents (custom rules),task_components[1].number_of_dependents (search criteria),task_components[2].number_of_dependents (offense saved searches),task_components[3].number_of_dependents (historical correlation profiles),id,status
+4- GET - /analytics/building_blocks/building_block_dependent_tasks/{task_id}/results => to get the name of the dependancies (name of the rule, saved search...) = dependent_id, dependent_name,dependent_type,dependent_owner,user_has_edit_permissions,blocking,dependent_group_ids
+
 ### Keywords
 SIEM IBM Qradar KPI Automation SOC cyberanalyst reporting security operations center cybersecurity key performance indicators
 
