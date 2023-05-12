@@ -99,7 +99,7 @@ You may have warning messages by importexcel dealing with the closing Reason nam
 SIEM IBM Qradar KPI Automation SOC cyberanalyst reporting security operations center cybersecurity key performance indicators
 
 
-22/12/2022
+2023-05-12 (ISO 8601)
 
 ## qradar_report_extraction_xml2csv script
 Powershell script to retreive and convert basic/useful information from [qradar reports extraction files (xml)](https://www.ibm.com/docs/en/qsip/7.4?topic=content-exporting-all-custom-specific-type)
